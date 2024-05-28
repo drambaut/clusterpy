@@ -16,7 +16,6 @@ ind = df.set_index(['m']).to_dict()['i']
 
 # csv.reader(open('Entradas/Oficial_Colombia/dij_def.csv'))
 reader = read_csv('Oficial_Antioquia/dij_def_ant.csv')
-reader = reader.iloc[1:].reset_index(drop=True)
 
 Dij = dict()
 for _, row in reader.iterrows():
@@ -39,7 +38,6 @@ for _, row in reader.iterrows():
 
 
 reader = read_csv('Oficial_Antioquia/cij_def_ant.csv')
-reader = reader.iloc[1:].reset_index(drop=True)
 
 Cio = dict()
 for _,row in reader.iterrows():
@@ -79,6 +77,7 @@ print(data)
 for area in Dij.keys():
     areas.append(area[1])
 areas = set(areas)
+print(len(areas))
 if data != len(areas):
     print('La informacion de las distancias Dij no conicide con la informacion del mapa')
 
