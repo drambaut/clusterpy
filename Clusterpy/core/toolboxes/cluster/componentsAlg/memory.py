@@ -1,63 +1,55 @@
 from copy import deepcopy
+import numpy as np
 
 class BasicMemory:
     """
-    Keeps the minimum amount of information about a given solution. It keeps the
-    Objective function value (self.objInfo) and the region each area has been assigned to
-    (self.regions)
+    Keeps essential information about a solution:
+        - Objective function value (self.objInfo)
+        - Region assignment for each area (self.regions)
+        - Seeds used (self.seeds)
     """
-    def __init__(self, objInfo=99999999E10, regions={}, seeds=[]):
-        """
-        @type objInfo: float
-        @keyword objInfo: Objective function value.
 
-        @type regions: list
-        @keyword regions: list of RegionŽs IDs
-        values.
-        """
+    def __init__(self, objInfo=99999999E10, regions={}, seeds=[]):
         self.objInfo = objInfo
         self.regions = regions
         self.seeds = seeds
 
     def updateBasicMemory(self, rm):
         """
-        Updates BasicMemory when a solution is modified.
+        Updates BasicMemory from another BasicMemory or ExtendedMemory object.
         """
         self.objInfo = rm.objInfo
-        self.regions = rm.returnRegions()
+        self.regions = rm.regions  # Directly access the 'regions' attribute
         self.seeds = rm.seeds
+
 
 class ExtendedMemory(BasicMemory):
     """
-    This memory is designed to allow the algorithm to go back to a given solution
-    (different from the current solution). It gives to RegionManager all the information that must be
-    available in order to continue an iteration process.
+    Extends BasicMemory to store additional information for backtracking:
+        - area2Region: Mapping of areas to their regions
+        - region2Area: Mapping of regions to their areas
+        - intraBorderingAreas: Areas on region borders
     """
-    def __init__(self, objInfo=99999999E10, area2Region={}, region2Area={},
-            intraBorderingAreas={}):
-        """
-        @type objInfo: float
-        @keyword objInfo: Objective function value
 
-        @type area2region: dictionairy
-        @keyword area2region: Region to which the area is in.
-
-        @type region2area: dictionary
-        @keyword region2area: areas within the region.
-
-        @type intraBorderingAreas: dictionary
-        @keyword intraBorderingAreas: areas in the border of the region.
-        """
-        BasicMemory.__init__(self, objInfo, {})
+    def __init__(self, objInfo=99999999E10, area2Region={}, region2Area={}, intraBorderingAreas={}):
+        super().__init__(objInfo, {})  # Call parent's constructor
         self.area2Region = area2Region
         self.region2Area = region2Area
         self.intraBorderingAreas = intraBorderingAreas
 
     def updateExtendedMemory(self, rm):
         """
-        Updates ExtendedMemory when a solution is modified.
+        Updates ExtendedMemory from another BasicMemory or ExtendedMemory object.
         """
-        BasicMemory.updateBasicMemory(self, rm)
+        super().updateBasicMemory(rm)  # Update base attributes
         self.area2Region = deepcopy(rm.area2Region)
         self.region2Area = deepcopy(rm.region2Area)
         self.intraBorderingAreas = deepcopy(rm.intraBorderingAreas)
+
+    def returnRegions(self):
+        """
+        Return regions created
+        """
+        areasId = self.area2Region.keys()
+        areasId = np.sort(areasId).tolist()
+        return [self.area2Region[area] for area in areasId]

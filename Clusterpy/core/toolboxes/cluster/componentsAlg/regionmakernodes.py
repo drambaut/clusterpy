@@ -1,4 +1,8 @@
 from copy import deepcopy
+from Clusterpy.core.toolboxes.cluster.componentsAlg.areacl import AreaCl
+from Clusterpy.core.toolboxes.cluster.componentsAlg.selectionTypeFunctions import selectionTypeDispatcher
+from os import getpid
+from time import time
 import numpy as np
 
 
@@ -108,7 +112,7 @@ class RegionMakerNodes:
         self.objInfo = -1
         self.assignAreasNoNeighs()
         self.seeds = []
-        self.potentialNodes = [k for k,v in self.am.y.iteritems() if int(v[0]) == 1.0]
+        self.potentialNodes = [k for k, v in self.am.y.items() if int(v[0]) == 1.0]
         self.dynimizingNodesDistance = Cio
 
         #  PREDEFINED NUMBER OF REGIONS
@@ -125,8 +129,6 @@ class RegionMakerNodes:
             if not initialSolution:
                 self.pRegions = pRegions
                 seeds = self.kmeansInit(Cio) # Aca hay que revisar porque en el caso que un nodo dinamizador este muy cerca de tpodos los demas, igual lo selecicona asi no sea de primero
-                #print 'Seeds', seeds        No aparece el método kmeansInit()
-                #print 'pasa kmeans'
                 self.seeds = seeds
                 self.setSeeds(seeds) #Listo
                 c = 0
@@ -134,10 +136,10 @@ class RegionMakerNodes:
                     self.constructRegions(Dij = Dij, Cio = Cio, seeds = seeds)
                     lenUnassAreas = len(self.unassignedAreas)
                     c += 1
-                #print 'pasa constructRegions'
-                #print seeds
+                print( 'pasa constructRegions')
+                print (seeds)
                 self.objInfo = self.getObj(Dij, Cio, seeds)
-                #print 'pasa selfobjinfo'
+                print( 'pasa selfobjinfo')
             else:
                 uniqueInitSolution = set(initialSolution)
                 self.pRegions = len(uniqueInitSolution)
@@ -271,3 +273,215 @@ class RegionMakerNodes:
                 self.removeRegionAsCandidate()
                 c += 1
         self.getIntraBorderingAreas()
+    
+    def kmeansInit(self, Cio):
+        cachedDistances = {}
+        ys = Cio
+        n = int(np.sum(list(self.am.y.values())))
+        #print( 'n', n) SE EJECUTA
+        #n = 5
+        #print 'pasa'
+        #for k,v in self.am.y.iteritems():
+        #    print v[0]
+        #    if int(v[0]) == 1.0:
+        #        print v[0] 
+        potential = [k for k,v in self.am.y.items() if int(v[0]) == 1.0]
+        
+        #print 'Potential Nodes', potential
+        distances = np.ones(n)
+        #print 'distances', distances
+        total = sum(distances)
+        #print 'TOTAL', total
+        #print 'AQUI'
+        probabilities = list(map(lambda x: x / float(total), distances))
+        seeds = []
+        localDistanceType = self.distanceType  # ESTO CMABIARA
+        
+        returnDistance2Area = AreaCl.returnDistance2Area
+        np.random.seed(int(time() * getpid()) % 4294967295)
+        for k in range(self.pRegions):
+            
+            random = np.random.uniform(0, 1)
+            find = False
+            acum = 0
+            cont = 0
+            while not find:
+                inf = acum
+                sup = acum + probabilities[cont]
+                if inf <= random <= sup:
+                    find = True
+                    seeds += [potential[cont]]
+                    #print 'SSSSSeeds', seeds
+                    #print 'SelfAMAreas Old', self.am.areas
+                    selfAmAreas = { key: self.am.areas[key] for key in potential }
+                    #print 'SelfAMAreas new', selfAmAreas
+                    #selfAmAreas = self.am.areas #Estas
+
+                    for area in selfAmAreas:
+                        currentArea = selfAmAreas[area] # Esta
+                        tempMap = []
+                        
+                        for x in seeds:
+                            if x < area:
+                                k = (x, area)
+                            elif x > area:
+                                k = (area, x)
+                            else:
+                                k = (0,0)
+                            cached = cachedDistances.get(k, -1)
+                            
+                            if cached < 0:
+                                '''
+                                newDist = returnDistance2Area(currentArea,
+                                                               selfAmAreas[x],
+                                                               distanceType = localDistanceType)
+                                '''
+                                #print 'Current Area', area
+                                #print 'Other Area', x
+                                newDist = Cio[area, x]
+                                #print 'newDist', newDist
+                                tempMap.append(newDist)
+                                cachedDistances[k] = newDist
+
+                            else:
+                                #print 'cachedddddddd'
+                                tempMap.append(cached)
+                                
+                        #print 'Seeds', seeds
+                        distancei = min(tempMap)
+                        #print 'dis'
+                        #print 'INDEX', potential.index(area)
+                        distances[potential.index(area)] = distancei
+                    total = sum(distances)
+                    probabilities = list(map(lambda x: x / float(total), distances))
+                else:
+                    cont += 1
+                    acum = sup
+        del cachedDistances
+        #print 'Seeds', seeds
+        #print 'pasa por aca tambien'
+        return seeds
+
+    def constructRegions(self, filteredCandidates=-99, filteredReg=-99, Dij = {}, Cio = {}, seeds = []):
+        """
+        Construct potential regions per area
+        """
+        _d_stat = self.distanceStat
+        _wd_stat = self.weightsDistanceStat
+        _ida_stat = self.indexDataStat
+        _fun_am_d2r = self.am.getDistance2Region
+
+        lastRegion = 0
+        #print 'Potential Regions 4 Area', self.potentialRegions4Area.keys()
+        #print 'Potential Regions 4 Area', self.potentialRegions4Area.values()
+        for areaID in self.potentialRegions4Area.keys():
+            if len(self.areas)<areaID:
+                print ('Problemas con el tamaño', len(self.areas), areaID)
+            a = self.areas[areaID]
+            regionIDs = list(self.potentialRegions4Area[areaID])
+            for region in regionIDs:
+                if (self.numRegionsType != "Exogenous" and
+                    self.constructionStage == "growing"
+                    and region in self.feasibleRegions):
+                    #  Once a region reaches the threshold, the grow is
+                    #  rejected until the assignation of enclaves
+                    continue
+                else:
+                    if filteredCandidates == -99:
+                        if (areaID not in self.newExternal and
+                            region != self.changedRegion):
+                            lastRegion = region
+                            #print "me metí acá"
+                            #print meRompo
+                            pass
+                        else:
+                            _reg_dist = 0.0
+                            if self.selectionType != "FullRandom":
+                                _reg_dist = _fun_am_d2r(self.areas[areaID],
+                                                        self.region2Area[region],
+                                                        distanceStat = _d_stat,
+                                                        weights = _wd_stat,
+                                                        indexData = _ida_stat,
+                                                        Dij = Dij,
+                                                        Cio = Cio,
+                                                        seeds = seeds)
+                            self.candidateInfo[(areaID, region)] = _reg_dist
+
+                    elif (filteredCandidates != -99 and
+                          areaID in filteredCandidates and
+                          region == filteredReg):
+                        _reg_dist = _fun_am_d2r(self.areas[areaID],
+                                                self.region2Area[region],
+                                                distanceStat = _d_stat,
+                                                weights = _wd_stat,
+                                                indexData = _ida_stat)
+                        self.candidateInfo[(areaID, region)] = _reg_dist
+
+        if len(self.candidateInfo) == 0:
+            self.changedRegion = lastRegion
+        if self.numRegionsType == "EndogenousRange":
+            self.filterCandidate(self.toRemove)
+        selectionTypeDispatcher[self.selectionType](self)
+
+    def assignAreasNoNeighs(self):
+        """
+        Assign to the region "-1" for the areas without neighbours
+        """
+        noNeighs = list(self.am.noNeighs)
+        nr = -1
+        for areaID in noNeighs:
+            self.area2Region[areaID] = nr
+            try:
+                aid = self.unassignedAreas.remove(areaID)
+            except:
+                pass
+            self.assignedAreas.append(areaID)
+            setAssigned = set(self.assignedAreas)
+        nr = nr - 1
+
+    def setSeeds(self, seeds, c=0):
+        '''
+        Sets the initial seeds for clustering
+        '''
+
+        if self.numRegionsType == "Exogenous" and len(seeds) <= self.pRegions:
+            idx = range(self.n)
+            didx = list((set(idx) - set(seeds)) - self.am.noNeighs)
+            np.random.shuffle(didx)
+            self.seeds = seeds + didx[0:(self.pRegions - len(seeds))]
+        else:
+            self.seeds = seeds
+            for seed in self.seeds:
+                self.NRegion += [0]
+                self.assignSeeds(seed, c)
+                c += 1
+
+    def extractThresholdVar(self):
+        """
+        Separate aggregation variables (data) from the variable selected
+        to satisfy a threshold value (thresholdVar)
+        """
+        self.totalThresholdVar = 0.0
+        for areaId in self.areas.keys():
+            self.areas[areaId].thresholdVar = self.areas[areaId].data[-1]
+            self.areas[areaId].data = self.areas[areaId].data[0: -1]
+            self.totalThresholdVar += self.areas[areaId].thresholdVar
+
+    def removeRegionAsCandidate(self):
+        """
+        Remove a region from candidates
+        """
+        for i in self.candidateInfo.keys():
+          a, r = i
+          if r in self.feasibleRegions:
+            self.candidateInfo.pop(i)
+
+    def recoverFromExtendedMemory(self, extendedMemory):
+        """
+        Recover a solution form the extended memory
+        """
+        self.objInfo = extendedMemory.objInfo
+        self.area2Region = extendedMemory.area2Region
+        self.region2Area = extendedMemory.region2Area
+        self.intraBorderingAreas = extendedMemory.intraBorderingAreas
+        self.seeds = extendedMemory.seeds

@@ -21,11 +21,12 @@ class Layer():
     with an upper root representing the original map and the
     different branches representing other layers related to the
     root.
+
     """
-    
     def __init__(self):
         """
         **Attributes**
+
         * Y: dictionary (attribute values of each feature)
         * fieldNames: list (fieldNames List of attribute names)
         * areas: list (list containing the coordinates of each feature)
@@ -132,20 +133,17 @@ class Layer():
             else:
                 fields.append(argument)
         labels = self.fieldNames
-        print("Labels", labels)
-        print("Valores Y", self.Y[124])
         count = 0
         subY = {}
         #print fields
         #print labels
         for i in self.Y.keys():
             subY[i] = []
-        print("subY", subY[124])
         for j in fields:
             for i in range(len(labels)):
                 if labels[i] == j:
                     for j in self.Y.keys():
-                        # print ('i,j', i, j)
+                        #print 'i,j', i, j
                         subY[j] = subY[j] + [self.Y[j][i]]
         #print "Variables successfully extracted"
         return subY
@@ -189,7 +187,8 @@ class Layer():
         dataOperations = {}
 
         # Construction of parameters            
-        fieldNames = tuple(args[1]) # Se ejecuta el valor de [dn]
+        # print(args[1])
+        fieldNames = tuple(args[1]) ## Error: args[2] no se puede convertir en una lista
         algorithmY = self.getVars(*fieldNames)
         if std==1:
             for nn,name in enumerate(fieldNames):
@@ -207,9 +206,11 @@ class Layer():
         args = (algorithmY,algorithmW) + args[2:]  # No existen más de 2 argumentos
 
         name = algorithm + "_" +  time.strftime("%Y%m%d%H%M%S")
+        print("LLamando al algoritmo")
         self.outputCluster[name] = {
             "pExhaustiveFunctionalRegions": lambda *args, **kargs: execpExhaustiveFunctionalRegions(*args, **kargs),
             }[algorithm](*args, **kargs)
+        print("Terminando argoritmo")
         self.outputCluster[name]["weightType"] = wType
         self.outputCluster[name]["aggregationVariables"] = fieldNames 
         self.outputCluster[name]["OS"] = os.name

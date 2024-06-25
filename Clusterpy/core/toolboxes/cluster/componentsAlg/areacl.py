@@ -1,3 +1,4 @@
+from Clusterpy.core.toolboxes.cluster.componentsAlg.distanceFunctions import distMethods
 import numpy as np
 
 class AreaCl:
@@ -33,3 +34,26 @@ class AreaCl:
                     self.var[j, i] = data[int(index)]
                     index += 1
             self.data = data[0: int(n + 1)]
+
+    def returnDistance2Area(self, otherArea, distanceType="EuclideanSquared", indexData=[]):
+        """
+        Return the distance to `otherArea`
+        """
+        y0 = []
+        y1 = []
+
+        if indexData:
+            for index in indexData:
+                y0 += [self.data[index]]
+                y1 += [otherArea.data[index]]
+        else:
+            y0 = self.data
+            y1 = otherArea.data
+
+        data = [y0] + [y1]
+        areaDistance = distMethods[distanceType](data)
+        try:
+            dist = areaDistance[0][0]
+        except:
+            dist = areaDistance[0]
+        return dist

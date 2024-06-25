@@ -40,8 +40,8 @@ def importArcData(filename):
     layer.Y = data
     layer.areas, layer.Wqueen, layer.Wrook, layer.shpType = importShape(filename + '.shp')
     layer.calculate_bbox()
-    print(layer.bbox)  # para imprimir toda la lista
-    print(layer.bbox[0]) 
+    # print(layer.bbox)  # para imprimir toda la lista
+    # print(layer.bbox[0]) 
       # Eliminé .defBbox por bbox pq defBbox no aparece dentro  
     #print "Done"    de los atributos de la Clase Layer
     return layer
@@ -97,7 +97,7 @@ def importDBF(filename):
             end = start + l + first
             #print('\n' , 'end: ', end)
             value = record[start: end]
-            print('\n', 'record: ', record)
+            # print('\n', 'record: ', record)
             while value.find(b"  ") != -1:
                 value = value.replace(b"  ", b" ")
             if value.startswith(b" "):
